@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import { reactive } from 'vue'
 import { nextTick, ref } from 'vue'
-import { ElInput, genFileId, type UploadFile, type UploadInstance } from 'element-plus'
+import { ElInput, genFileId, type UploadInstance } from 'element-plus'
 import { Plus, Delete, Upload } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules, UploadProps, UploadRawFile } from 'element-plus'
+import { generalXml } from '@/fusion360_thread_tool'
 
 const templateList = [
   { name: 'ISO标准', file: 'ISOMetricprofile.xml' },
@@ -16,7 +17,6 @@ const form = reactive({
   mode: '0',
   template: templateList[0].file,
   uploadFile: null as UploadRawFile | null,
-  updateFileContent: '',
   offsets: [0.5, 1.0],
   handleInternel: true,
   handleExternal: true,
@@ -57,14 +57,26 @@ const handleUploadExceed: UploadProps['onExceed'] = (files) => {
   file.uid = genFileId()
   upload.value!.handleStart(file)
   form.uploadFile = file
-  form.uploadFile?.text().then((text) => (form.updateFileContent = text))
 }
 
 const handleUploadChange: UploadProps['onChange'] = (file, files) => {
   if (file?.raw != null) {
     console.log(`handleUploadChange file=${file.name}`)
     form.uploadFile = file?.raw!
-    form.uploadFile?.text().then((text) => (form.updateFileContent = text))
+  }
+}
+
+function doGenerate() {
+  if (form.mode == '0') {
+    fetch(`/template/${form.template}`)
+      .then((response) => response.text())
+      .then((data) => {
+        console.log(data)
+      })
+  } else if (form.mode == '1') {
+    form.uploadFile?.text().then((data) => {
+      console.log(data)
+    })
   }
 }
 
@@ -72,13 +84,12 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
   if (!formEl) return
   await formEl.validate((valid, fields) => {
     if (valid) {
-      console.log('submit!')
+      console.log(`submit! form=${JSON.stringify(form)}`)
+      doGenerate()
     } else {
       console.log('error submit!', fields)
     }
   })
-  console.log(`submit! form=${JSON.stringify(form)}`)
-  console.log(`FILE: ${form.updateFileContent}`)
 }
 </script>
 
