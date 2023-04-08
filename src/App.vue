@@ -4,23 +4,23 @@ import { nextTick, ref } from 'vue'
 import { ElInput, genFileId, type UploadInstance } from 'element-plus'
 import { Plus, Delete, Upload } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules, UploadProps, UploadRawFile } from 'element-plus'
-import { generalXml } from '@/fusion360_thread_tool'
+import { generalXml, type XmlConfig } from '@/fusion360_thread_tool'
 
 const templateList = [
-  { name: 'ISO标准', file: 'ISOMetricprofile.xml' },
-  { name: 'ISO梯型标准', file: 'ISOMetricTrapezoidalThreads.xml' }
+  { name: 'ISO 公制螺纹规格', file: 'ISOMetricprofile.xml' },
+  { name: 'ISO 公制梯形螺纹', file: 'ISOMetricTrapezoidalThreads.xml' }
 ]
 
 // do not use same name with ref
 const form = reactive({
-  name: '',
+  name: '3D打印螺纹',
   mode: '0',
   template: templateList[0].file,
   uploadFile: null as UploadRawFile | null,
   offsets: [0.5, 1.0],
   handleInternel: true,
   handleExternal: true,
-  reserveOriginal: true
+  reserveOriginal: false
 })
 
 const rules = reactive<FormRules>({
@@ -66,16 +66,48 @@ const handleUploadChange: UploadProps['onChange'] = (file, files) => {
   }
 }
 
+function downloadXMLFile(xmlString: string, fileName: string) {
+  const xmlBlob = new Blob([xmlString], { type: 'text/xml' })
+
+  // 创建一个临时URL，指向XML文件
+  const url = URL.createObjectURL(xmlBlob)
+
+  // 创建一个隐藏的<a>元素，设置下载链接并模拟点击
+  const a = document.createElement('a')
+  a.setAttribute('style', 'display:none')
+  a.setAttribute('href', url)
+  a.setAttribute('download', fileName)
+  document.body.appendChild(a)
+  a.click()
+
+  // 释放临时URL
+  URL.revokeObjectURL(url)
+
+  // 删除<a>元素
+  document.body.removeChild(a)
+}
+
+function genernalAndDownload(data: string) {
+  const config = {
+    name: form.name,
+    offsets: form.offsets,
+    handleExternal: form.handleExternal,
+    handleInternel: form.handleInternel,
+    reserveOriginal: form.reserveOriginal
+  } as XmlConfig
+  const newXml = generalXml(data, config)
+  downloadXMLFile(newXml, `${form.name}.xml`)
+}
 function doGenerate() {
   if (form.mode == '0') {
     fetch(`/template/${form.template}`)
       .then((response) => response.text())
       .then((data) => {
-        console.log(data)
+        genernalAndDownload(data)
       })
   } else if (form.mode == '1') {
     form.uploadFile?.text().then((data) => {
-      console.log(data)
+      genernalAndDownload(data)
     })
   }
 }
@@ -177,7 +209,9 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
             <el-checkbox label="保留原始" name="type" v-model="form.reserveOriginal" />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="onSubmit(ruleFormRef)">生成</el-button>
+            <el-button type="primary" title="Genrate" @click="onSubmit(ruleFormRef)"
+              >生成</el-button
+            >
             <el-button>重置</el-button>
           </el-form-item>
         </el-form>
