@@ -34,36 +34,32 @@ type ThreadSize = {
 
 function patchDesignation(d: Designation, size: number, cfg: XmlConfig) {
   const append = [] as Thread[]
-  d.Thread.forEach((t, index) => {
+  d.Thread.forEach((t) => {
     // console.log(`Thread: ${JSON.stringify(t)}`)
-    if (!cfg.reserveOriginal) {
-      d.Thread.splice(index, 1)
-    }
-    if (size == 2) {
-      if (t.Gender == GENDER_EXT && cfg.handleExternal) {
-        cfg.offsets.forEach((offset) => {
-          const newT = { ...t }
-          newT.Class = newT.Class + '-offset-' + offset
-          newT.MajorDia += offset
-          newT.MinorDia += offset
-          newT.PitchDia += offset
-          append.push(newT)
-        })
-      } else if (t.Gender == GENDER_INT && cfg.handleInternel) {
-        cfg.offsets.forEach((offset) => {
-          const newT = { ...t }
-          newT.Class = newT.Class + '-offset-' + offset
-          newT.MajorDia += offset
-          newT.MinorDia += offset
-          newT.PitchDia += offset
-          append.push(newT)
-        })
-      }
+    if (t.Gender == GENDER_EXT && cfg.handleExternal) {
+      cfg.offsets.forEach((offset) => {
+        const newT = { ...t }
+        newT.Class = newT.Class + '@' + (offset >= 0 ? '+' + offset : '-' + offset)
+        newT.MajorDia += offset
+        newT.MinorDia += offset
+        newT.PitchDia += offset
+        append.push(newT)
+      })
+    } else if (t.Gender == GENDER_INT && cfg.handleInternel) {
+      cfg.offsets.forEach((offset) => {
+        const newT = { ...t }
+        newT.Class = newT.Class + '@' + (offset >= 0 ? '+' + offset : '-' + offset)
+        newT.MajorDia += offset
+        newT.MinorDia += offset
+        newT.PitchDia += offset
+        append.push(newT)
+      })
     }
   })
-  // if (!cfg.reserveOriginal) {
-  //   d.Thread = []
-  // }
+  // Clear orig
+  if (!cfg.reserveOriginal) {
+    d.Thread = []
+  }
   d.Thread.push(...append)
 }
 
@@ -82,33 +78,43 @@ function generalXml(input: string, cfg: XmlConfig): string {
   root.CustomName = cfg.name
   const sizeList = root.ThreadSize as any[]
   sizeList.forEach((i, index) => {
-    console.log(`SizeList index=${index}`)
     const it = i as ThreadSize
+    console.log(`SizeList[${index}]: size=${it.Size}`)
     // console.log(`size: ${it.Size}`)
     if (it.Designation instanceof Array) {
       it.Designation.forEach((d) => {
         patchDesignation(d, i.Size, cfg)
-      })
-      it.Designation.filter((it) => {
-        return it.Thread.length > 0
       })
     } else {
       patchDesignation(it.Designation, i.Size, cfg)
     }
   })
 
-  root.ThreadSize = sizeList.filter((it) => {
-    if (it.Designation instanceof Array) {
-      return it.Designation.length > 0
+  // Remove empty thread size
+  for (let i = sizeList.length - 1; i >= 0; i--) {
+    const d = sizeList[i]
+    if (d.Designation instanceof Array) {
+      let allCount = 0
+      for (let j = d.Designation.length - 1; j >= 0; j--) {
+        const t = d.Designation[j]
+        allCount += t.Thread.length
+      }
+      if (allCount == 0) {
+        sizeList.splice(i, 1)
+      }
     } else {
-      return it.Designation.Thread.length > 0
+      if (d.Designation.Thread.length <= 0) {
+        sizeList.splice(i, 1)
+      }
     }
-  })
+  }
 
   const builder = new XMLBuilder({
     ignoreAttributes: false,
     format: true
   })
+  // Fix xml version
+  jobj['?xml']['@_version'] = jobj['?xml']['@_version'].toFixed(1)
   let xml = builder.build(jobj)
   // console.log(`xml: ${xml}`)
   return xml
