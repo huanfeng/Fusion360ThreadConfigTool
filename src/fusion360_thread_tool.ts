@@ -2,9 +2,8 @@ import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 
 type XmlConfig = {
   name: string
-  offsets: number[]
-  handleInternel: boolean
-  handleExternal: boolean
+  extOffsets: number[]
+  intOffsets: number[]
   reserveOriginal: boolean
 }
 
@@ -36,23 +35,27 @@ function patchDesignation(d: Designation, size: number, cfg: XmlConfig) {
   const append = [] as Thread[]
   d.Thread.forEach((t) => {
     // console.log(`Thread: ${JSON.stringify(t)}`)
-    if (t.Gender == GENDER_EXT && cfg.handleExternal) {
-      cfg.offsets.forEach((offset) => {
-        const newT = { ...t }
-        newT.Class = newT.Class + '@' + (offset >= 0 ? '+' + offset : '-' + offset)
-        newT.MajorDia += offset
-        newT.MinorDia += offset
-        newT.PitchDia += offset
-        append.push(newT)
+    if (t.Gender == GENDER_EXT && cfg.extOffsets.length > 0) {
+      cfg.extOffsets.forEach((offset) => {
+        if (size >= Math.abs(offset) * 2) {
+          const newT = { ...t }
+          newT.Class = newT.Class + '@' + (offset >= 0 ? '+' + offset : offset)
+          newT.MajorDia += offset
+          newT.MinorDia += offset
+          newT.PitchDia += offset
+          append.push(newT)
+        }
       })
-    } else if (t.Gender == GENDER_INT && cfg.handleInternel) {
-      cfg.offsets.forEach((offset) => {
-        const newT = { ...t }
-        newT.Class = newT.Class + '@' + (offset >= 0 ? '+' + offset : '-' + offset)
-        newT.MajorDia += offset
-        newT.MinorDia += offset
-        newT.PitchDia += offset
-        append.push(newT)
+    } else if (t.Gender == GENDER_INT && cfg.intOffsets.length > 0) {
+      cfg.intOffsets.forEach((offset) => {
+        if (size >= Math.abs(offset) * 2) {
+          const newT = { ...t }
+          newT.Class = newT.Class + '@' + (offset >= 0 ? '+' + offset : offset)
+          newT.MajorDia += offset
+          newT.MinorDia += offset
+          newT.PitchDia += offset
+          append.push(newT)
+        }
       })
     }
   })
@@ -79,7 +82,7 @@ function generalXml(input: string, cfg: XmlConfig): string {
   const sizeList = root.ThreadSize as any[]
   sizeList.forEach((i, index) => {
     const it = i as ThreadSize
-    console.log(`SizeList[${index}]: size=${it.Size}`)
+    // console.log(`SizeList[${index}]: size=${it.Size}`)
     // console.log(`size: ${it.Size}`)
     if (it.Designation instanceof Array) {
       it.Designation.forEach((d) => {
