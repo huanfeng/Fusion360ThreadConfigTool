@@ -17,36 +17,40 @@ const form = reactive({
   mode: '0',
   template: templateList[0].file,
   uploadFile: null as UploadRawFile | null,
-  offsets: [0.5, 1.0],
-  handleInternel: true,
-  handleExternal: true,
-  reserveOriginal: false
+  extOffsets: [-0.2, -0.5],
+  intOffsets: [0.2, 0.5],
+  reserveOriginal: true
 })
 
 const rules = reactive<FormRules>({
-  name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-  // mode: [{ required: true, trigger: 'change' }],
-  offsets: [{ required: true, message: '偏移列表不能为空!', trigger: 'change' }]
+  name: [{ required: true, message: '请输入名称', trigger: 'blur' }]
 })
 
 const ruleFormRef = ref<FormInstance>()
-const inputOffsetValue = ref(0)
-const InputRef = ref<InstanceType<typeof ElInput>>()
+const inputExtOffsetValue = ref(0)
+const InputExtRef = ref<InstanceType<typeof ElInput>>()
+const inputIntOffsetValue = ref(0)
+const InputIntRef = ref<InstanceType<typeof ElInput>>()
 
-const handleOffsetRemove = (tag: number) => {
-  form.offsets.splice(form.offsets.indexOf(tag), 1)
+const handleOffsetRemove = (tag: number, isExt: boolean) => {
+  const offsets = isExt ? form.extOffsets : form.intOffsets
+  offsets.splice(offsets.indexOf(tag), 1)
 }
 
-const handleOffsetAdd = () => {
-  const value = inputOffsetValue.value
-  if (value != 0 && !form.offsets.includes(value)) {
-    form.offsets.push(value)
-    form.offsets.sort()
+const handleOffsetAdd = (isExt: boolean) => {
+  const value = isExt ? inputExtOffsetValue.value : inputIntOffsetValue.value
+  if (value != 0) {
+    const offsets = isExt ? form.extOffsets : form.intOffsets
+    if (!offsets.includes(value)) {
+      offsets.push(value)
+      offsets.sort()
+    }
   }
 }
 
-const handleOffsetClear = () => {
-  form.offsets.splice(0, form.offsets.length)
+const handleOffsetClear = (isExt: boolean) => {
+  const offsets = isExt ? form.extOffsets : form.intOffsets
+  offsets.splice(0, offsets.length)
 }
 
 const upload = ref<UploadInstance>()
@@ -90,9 +94,8 @@ function downloadXMLFile(xmlString: string, fileName: string) {
 function genernalAndDownload(data: string) {
   const config = {
     name: form.name,
-    offsets: form.offsets,
-    handleExternal: form.handleExternal,
-    handleInternel: form.handleInternel,
+    extOffsets: form.extOffsets,
+    intOffsets: form.intOffsets,
     reserveOriginal: form.reserveOriginal
   } as XmlConfig
   const newXml = generalXml(data, config)
@@ -161,52 +164,99 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
               <div class="el-upload__text">拖放文件到这里或<em>点击进行上传</em></div>
             </el-upload>
           </el-form-item>
-          <el-form-item label="增加偏移">
+          <el-form-item label="增加外螺纹偏移">
             <el-space>
               <el-input-number
-                v-model="inputOffsetValue"
+                v-model="inputExtOffsetValue"
                 :precision="2"
                 :step="0.1"
                 :min="-100"
                 :max="100"
                 class="w-50 m-2"
                 controls-position="right"
-                ref="InputRef"
-                @keyup.enter="handleOffsetAdd"
+                ref="InputExtRef"
+                @keyup.enter="handleOffsetAdd(true)"
               />
-              <el-button @click="handleOffsetAdd" :icon="Plus" circle />
+              <el-button @click="handleOffsetAdd(true)" :icon="Plus" />
               <el-tooltip class="box-item" effect="light" content="清空" placement="top">
-                <el-button @click="handleOffsetClear" :icon="Delete" circle />
+                <el-button @click="handleOffsetClear(true)" :icon="Delete" />
               </el-tooltip>
               <el-tooltip
                 class="box-item"
                 effect="light"
-                content="文本框可以手动输入, 按回车添加"
-                placement="top"
+                content="文本框可以手动输入, 按回车添加; 这里的单位和源文件中一致, 可能是mm或in"
+                placement="right"
               >
                 <el-link type="primary" target="_blank">说明</el-link>
               </el-tooltip>
             </el-space>
           </el-form-item>
-          <el-form-item label="偏移列表" prop="offsets">
+          <el-form-item label="外螺纹偏移列表">
             <el-space wrap>
               <el-tag
-                v-for="item in form.offsets"
+                v-for="item in form.extOffsets"
                 :key="item"
                 class="mx-1"
                 size="large"
                 closable
                 :disable-transitions="true"
-                @close="handleOffsetRemove(item)"
+                @close="handleOffsetRemove(item, false)"
               >
-                {{ item.toString() }}mm
+                {{ item.toString() }}
+              </el-tag>
+            </el-space>
+          </el-form-item>
+          <el-form-item label="增加内螺纹偏移">
+            <el-space>
+              <el-input-number
+                v-model="inputIntOffsetValue"
+                :precision="2"
+                :step="0.1"
+                :min="-100"
+                :max="100"
+                class="w-50 m-2"
+                controls-position="right"
+                ref="InputIntRef"
+                @keyup.enter="handleOffsetAdd(false)"
+              />
+              <el-button @click="handleOffsetAdd(false)" :icon="Plus" />
+              <el-tooltip class="box-item" effect="light" content="清空" placement="top">
+                <el-button @click="handleOffsetClear(false)" :icon="Delete" />
+              </el-tooltip>
+              <el-tooltip
+                class="box-item"
+                effect="light"
+                content="文本框可以手动输入, 按回车添加; 这里的单位和源文件中一致, 可能是mm或in"
+                placement="right"
+              >
+                <el-link type="primary" target="_blank">说明</el-link>
+              </el-tooltip>
+            </el-space>
+          </el-form-item>
+          <el-form-item label="内螺纹偏移列表">
+            <el-space wrap>
+              <el-tag
+                v-for="item in form.intOffsets"
+                :key="item"
+                class="mx-1"
+                size="large"
+                closable
+                :disable-transitions="true"
+                @close="handleOffsetRemove(item, true)"
+              >
+                {{ item.toString() }}
               </el-tag>
             </el-space>
           </el-form-item>
           <el-form-item label="更多选项">
-            <el-checkbox label="处理内螺纹" name="type" v-model="form.handleInternel" />
-            <el-checkbox label="处理外螺纹" name="type" v-model="form.handleExternal" />
-            <el-checkbox label="保留原始" name="type" v-model="form.reserveOriginal" />
+            <el-tooltip
+              class="box-item"
+              effect="light"
+              content="是否保留原配置, 不保留会稍微减小文件大小"
+              placement="right"
+            >
+              <el-checkbox label="保留原始" name="type" v-model="form.reserveOriginal" />
+            </el-tooltip>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" title="Genrate" @click="onSubmit(ruleFormRef)"
